@@ -57,7 +57,7 @@ function Restart-VCSA {
         } # catch
 
 
-        ## Get CIS object for SSH
+        ## Get CIS object for appliance shutdown
         Write-Verbose ("Getting restart object via CIS.")
 
         try {
@@ -90,51 +90,10 @@ function Restart-VCSA {
             Start-Sleep 5
         } # while
 
-        Write-Verbose ("VCSA is restarting. Waiting for CIS connectivity.")
+        Start-Sleep 10
 
-        ## Wait for 60 seconds
-        Start-Sleep 60
-
-        ## Poll CIS
-        while(!(Connect-CisServer -Server $vcsa -Credential $Credential -ErrorAction SilentlyContinue)){
-            Start-Sleep 10
-        } # while
-
-
-        ## Get CIS object for system health
-        Write-Verbose ("Getting system health object via CIS.")
-
-        try {
-            $health = Get-CisService -Name com.vmware.appliance.health.system -ErrorAction Stop
-            Write-Verbose ("Got system health object.")
-        } # try
-        catch {
-            Write-Debug ("Failed to get system health object.")
-            throw ("Failed to get CIS health object. " + $_.exception.message)
-        } # catch
-
-
-        ## Wait for health to go green
-        Write-Verbose ("Waiting for system health GREEN status.")
-
-        while($health.get() -ne "green"){
-            Start-Sleep 5
-        } # while
-
-        ## Wait for PowerCLI connectivity
-        Write-Verbose ("Waiting for PowerCLI connectivity.")
-
-        while(!(Connect-VIServer -Server $vcsa -Credential $Credential -ErrorAction SilentlyContinue)){
-            Start-Sleep 5
-        } # while
-
-        Write-Verbose ("PowerCLI connectivity available.")
-
-        ## Disconnect this session
-        Disconnect-VIServer -Server $vcsa -Force -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
-
-        Write-Verbose ("Appliance restart complete.")
-
+        Write-Verbose ("VCSA has resarted.")
+        
     } # process
 
     end {
