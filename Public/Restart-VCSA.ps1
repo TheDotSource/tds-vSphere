@@ -1,11 +1,12 @@
 function Restart-VCSA {
     <#
     .SYNOPSIS
-       Restart a VCSA appliance and wait for it to become available.
+       Initiaite a restart of a VCSA.
 
     .DESCRIPTION
-       Restart a VCSA appliance and wait for it to become available.
-       CIS is used to perform the restart then subsequent health checks.
+       Initiaite a restart of a VCSA.
+       Function will wait until restart has begun before returning.
+       Restart is initiated via CIS.
 
     .PARAMETER vcsa
         The hostname or IP of the target VCSA.
@@ -17,10 +18,13 @@ function Restart-VCSA {
         System.String. Target VCSA VM.
 
     .OUTPUTS
-        None.
+        System.String. Target VCSA VM.
 
     .EXAMPLE
-        
+        Restart-VCSA -vcsa vcsa.lab.local -Credential $creds
+
+        Restart vcsa.pod.local using $creds
+
     .LINK
 
     .NOTES
@@ -90,10 +94,8 @@ function Restart-VCSA {
             Start-Sleep 5
         } # while
 
-        Start-Sleep 10
-
-        Write-Verbose ("VCSA has resarted.")
-        
+        Write-Verbose ("VCSA has restarted.")
+      
     } # process
 
     end {

@@ -23,7 +23,10 @@ function Wait-VCSA {
         None.
 
     .EXAMPLE
-        
+        Wait-VCSA -vcsa vcsa.lab.local -Credential $creds
+
+        Restart vcsa.pod.local using $creds
+
     .LINK
 
     .NOTES
@@ -100,7 +103,7 @@ function Wait-VCSA {
         ## Disconnect this session
         Disconnect-VIServer -Server $vcsa -Force -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
 
-        
+
         ## Get VCSA version
         Write-Verbose ("Querying VCSA version.")
 
