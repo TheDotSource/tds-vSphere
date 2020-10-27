@@ -1,28 +1,32 @@
 ﻿function New-vsanBootStrap {
-#Requires -Modules @{"ModuleName" = "VMware.VimAutomation.Core"; "ModuleVersion" = "11.0.0.10336080"}
     <#
     .SYNOPSIS
-        Initialise a new vSAN cluster on a single host.
+        Initialise a new vSAN cluster on a single host with a specified cache and capacity disk.
 
     .DESCRIPTION
         Connect to a host and prepare vsan bootstrap.
         The function will initialise a vSAN cluster on a single host.
-        It is assumed that the smallest available disk will be the cache disk, with an additional disk for capacity.
-        Disks must be over 8GB in size.
+        The function will filter cache and capacity disks based on thier specified size.
 
     .PARAMETER esxHost
         The host on which to create the vSAN bootstrap.
 
+    .PARAMETER cacheDiskSize
+        The cache disk size to use in GB.
+
+    .PARAMETER capacityDiskSize
+        The capacity disk size to use in GB.
+
     .INPUTS
-        None.
+        System.String. ESXi hostname or IP.
 
     .OUTPUTS
         None.
 
     .EXAMPLE
-        New-vsanBootStrap -esxHost 10.10.1.10 -Verbose
+        New-vsanBootStrap -esxHost 10.10.1.10 -cacheDiskSize 30 -capacityDiskSize 180 -Verbose
 
-        Bootstrap vSAN on 10.10.1.10 using 1 cache disk and 1 capacity disk.
+        Bootstrap vSAN on 10.10.1.10 using a 30GB cache disk and a 180GB capacity disk.
 
     .LINK
 
@@ -35,7 +39,11 @@
     Param
     (
         [Parameter(Mandatory=$true,ValueFromPipeline=$true)]
-        [string]$esxHost
+        [string]$esxHost,
+        [Parameter(Mandatory=$true,ValueFromPipeline=$false)]
+        [int]$cacheDiskSize,
+        [Parameter(Mandatory=$true,ValueFromPipeline=$false)]
+        [int]$capacityDiskSize
     )
 
 
@@ -114,7 +122,7 @@
 
         ## Get vSAN cache and capacity disks
         try {
-            $vsanDisks = $esxcli.storage.core.device.list.invoke() | Where-Object {$_.isremovable -eq "false" -and [int]$_.size -gt 8192} | Sort-Object -Property Size -Descending
+            $vsanDisks = $esxcli.storage.core.device.list.invoke() | Where-Object {$_.isremovable -eq "false"}
             Write-Verbose ("Got vSAN disks.")
         } # try
         catch {
@@ -122,18 +130,39 @@
             throw ("Failed to get vSAN disks. " + $_.exception.message)
         } # catch
 
+        ## Select cache and caapcity based on specified sizes
+        Write-Verbose ("Selecting cache disk.")
 
-        ## Appky should process
+        $vsanCache = $vsanDisks | Where-Object {([int]$_.size / 1024) -eq $cacheDiskSize }
+
+        if (!$vsanCache) {
+            Write-Debug ("Failed to find cache disk.")
+            throw ("Failed to find vSan cache disk of specified size (" + $cacheDiskSize + ")")
+        } # if
+
+        Write-Verbose ("Using device " + $vsanCache.device + " for vSan cache.")
+
+
+        Write-Verbose ("Selecting capacity disk.")
+        $vsanCapacity = $vsanDisks | Where-Object {([int]$_.size / 1024) -eq $capacityDiskSize}
+
+        if (!$vsanCapacity) {
+            Write-Debug ("Failed to find capacity disk.")
+            throw ("Failed to find vSan capacity disk of specified size (" + $cacheDiskSize + ")")
+        } # if
+
+        Write-Verbose ("Using device " + $vsanCapacity.device + " for vSan capacity.")
+
+
+        ## Apply should process
         if ($PSCmdlet.ShouldProcess($esxHost)) {
 
-
             Write-Verbose ("Tagging capacity disk.")
-
 
             ## Tag capacity disk
             try {
                 $capacityTag = $esxcli.vsan.storage.tag.add.CreateArgs()
-                $capacityTag.disk = $vsanDisks[0].Device
+                $capacityTag.disk = $vsanCapacity.Device
                 $capacityTag.tag = "capacityFlash"
                 $esxcli.vsan.storage.tag.add.Invoke($capacityTag) | Out-Null
                 Write-Verbose ("Tagged capacity disk.")
@@ -146,14 +175,11 @@
 
             Write-Verbose ("Adding cache disk and creating vSAN datastore.")
 
-
             ## Create datastore
             try {
                 $addVsanStorage = $esxcli.vsan.storage.add.CreateArgs()
-                $addVsanStorage.ssd = $vsanDisks[1].Device
-                $addVsanStorage.disks = $vsanDisks[0].Device
-                Write-Verbose ("Capacity disk of capacity " + $vsanDisks[0].size + " added.")
-                Write-Verbose ("Cache disk of capacity " + $vsanDisks[1].size + " added.")
+                $addVsanStorage.ssd = $vsanCache.Device
+                $addVsanStorage.disks = $vsanCapacity.Device
                 Write-Verbose ("Configured datastore object.")
             } #try
             catch {

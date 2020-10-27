@@ -6,7 +6,7 @@
     .DESCRIPTION
         Set ESXi system log location, matching datastore name based on a wildcard, for example, *scratch
         This allows hostnames to be piped in and a common wildcard to be used.
-        For example, datastores esx01Scrtach, esxi02Scratch, esxi03Scratch could all configured using *scratch as the wildcard.
+        For example, datastores esx01Scratch, esxi02Scratch, esxi03Scratch could all configured using *scratch as the wildcard.
 
     .PARAMETER vmHost
         The host to set the log location on.

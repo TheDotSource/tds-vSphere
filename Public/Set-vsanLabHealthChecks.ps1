@@ -55,7 +55,9 @@ function Set-vsanLabHealthChecks {
             "controllerfirmware",
             "releasecataloguptodate",
             "vumconfig",
-            "vsanenablesupportinsight"
+            "vsanenablesupportinsight",
+            "smalldiskstest",
+            "diskusage"
         )
 
     } # begin
