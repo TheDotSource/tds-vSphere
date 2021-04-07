@@ -77,20 +77,6 @@
                 throw ("Failed to set cluster HA address. " + $_.exception.message)
             } # catch
 
-
-            ## Restart HA to apply config change
-            Write-Verbose ("HA is being restarted to apply changes.")
-
-            try {
-                $clusterObj | Set-Cluster -HAEnabled $false -Confirm:$false | Out-Null
-                $clusterObj | Set-Cluster -HAEnabled $true -Confirm:$false | Out-Null
-                Write-Verbose ("HA restart complete.")
-            } # try
-            catch {
-                Write-Debug ("Failed to restart HA.")
-                throw ("Failed to restart HA. " + $_.exception.message)
-            } # catch
-
         } # if
 
         Write-Verbose ("Completed cluster.")

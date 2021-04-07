@@ -135,7 +135,7 @@
 
         ## Configure CPU and RAM
         try {
-            Set-VM -VM $vm -MemoryGB $memGb -CoresPerSocket $vCpu -NumCpu $vCpu -Confirm:$false | Out-Null
+            Set-VM -VM $vm -MemoryGB $memGb -NumCpu $vCpu -Confirm:$false | Out-Null
             Write-Verbose ("VM CPU and RAM set to 2GB and 2 cores.")
         } # try
         catch {
