@@ -124,6 +124,7 @@
         ## Set supported versions, this is based on vcsa\version.txt
         $supportedVersions = @(
                 "VMware-vCenter-Server-Appliance-6.7.0.40000-14367737",
+                "VMware-vCenter-Server-Appliance-6.7.0.47000-17713310",
                 "VMware-vCenter-Server-Appliance-7.0.0.10100-15952498",
                 "VMware-vCenter-Server-Appliance-7.0.0.10300-16189094",
                 "VMware-vCenter-Server-Appliance-7.0.1.00000-16860138",
