@@ -49,7 +49,7 @@ function Invoke-localToDSCopy {
         Write-Verbose ("Function start.")
 
         ## Fetch datastore object to be used as target
-        Write-Verbose ("Fetching datastore object.")
+        Write-Verbose ("Fetching datastore object for " + $datastore)
 
         try {
             $targetDs = Get-Datastore -Name $datastore -ErrorAction Stop
