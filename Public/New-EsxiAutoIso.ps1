@@ -20,6 +20,9 @@ function New-EsxiAutoIso {
     .PARAMETER dataStore
         The name of the target datastore to deploy to.
 
+    .PARAMETER resetVmk0
+        Optional. By default, VMK0 inherits a MAC from the physical adapter which can cause anomalies with nested networking.
+
    .INPUTS
         None.
 
@@ -57,7 +60,9 @@ function New-EsxiAutoIso {
         [Parameter(Mandatory=$true,ValueFromPipeline=$false)]
         [IPAddress]$nameserver,
         [Parameter(Mandatory=$true,ValueFromPipeline=$false)]
-        [string]$hostname
+        [string]$hostname,
+        [Parameter(Mandatory=$false,ValueFromPipeline=$false)]
+        [switch]$resetVmk0
     )
 
 
@@ -83,6 +88,29 @@ function New-EsxiAutoIso {
             Write-Warning ("Failed to open ESXi .DISCINFO descriptor. Verify valid media has been extracted to the path specified.")
         } # catch
 
+
+        ## Get contents of BOOT.CFG
+        Write-Verbose ("Opening BOOT.CFG")
+        try {
+            $bootCfg = Get-Content -Path ($mediaPath + "\EFI\BOOT\BOOT.CFG") -ErrorAction Stop
+            Write-Verbose ("BOOT.CFG opened.")
+        } # try
+        catch {
+            throw ("Failed to open BOOT.CFG. " + $_.exception.message)
+        } # catch
+
+        ## Find kernelopt line and set appropriately
+        $newBootCfg = $bootCfg | ForEach-Object -Process {
+
+                if ($_ -match "kernelopt*") {
+
+                    ## Replace this line to point to our new KS.CFG
+                    return "kernelopt=runweasel ks=cdrom:/EFI/BOOT/KS.CFG"
+                } # if
+
+                $_
+        } # foreach
+
         ## Configure start of template
         Write-Verbose ("Processing ks.cfg with specified values.")
 
@@ -101,7 +129,30 @@ network --bootproto=static --device=vmnic0 --ip={1} --netmask={2} --gateway={3} 
 
 ### Reboot ESXi Host
 reboot
+
+
+#Firstboot section 1
+%firstboot --interpreter=busybox
+sleep 30
+
+### Add default VM Network
+esxcli network vswitch standard portgroup add -p "VM Network" -v vSwitch0
 "@
+
+
+        ## If -resetVmk0 is specified, add the following ESXCLI commands
+        if ($resetVmk0) {
+
+            Write-Verbose ("Adding ESXCLI for VMK0 reset.")
+            
+            $ksTemplate += @"
+
+### Reset VMK0. By default, VMK0 inherits a MAC from the physical adapter which can cause anomalies with nested networking.
+esxcli network ip interface remove --interface-name=vmk0
+esxcli network ip interface add --interface-name=vmk0 --portgroup-name="Management Network"
+esxcli network ip interface ipv4 set -i vmk0 -I {1} -N {2} -t static
+"@
+        } # if
 
         ## Inject template values
         try {
@@ -117,17 +168,19 @@ reboot
             Remove-Item -Path ($mediaPath + "\EFI\BOOT\KS.CFG") -Force
         }
 
-        ## Remove existing KS.CFG, if it exists
+        ## Inject new KS.CFG and BOOT.CFG
         Write-Verbose ("Saving template to " + $outputFile)
         try {
             $ksTemplate | Out-File -FilePath ($mediaPath + "\EFI\BOOT\KS.CFG") -Encoding utf8NoBOM -Force -ErrorAction Stop
-            Write-Verbose ("File written to " + ($mediaPath + "\EFI\BOOT\KS.CFG"))
+            $newBootCfg | Out-File -FilePath ($mediaPath + "\EFI\BOOT\BOOT.CFG") -Encoding utf8NoBOM -Force -ErrorAction Stop
+            Write-Verbose ("Files written to " + ($mediaPath + "\EFI\BOOT\KS.CFG") + " and " + ($mediaPath + "\EFI\BOOT\BOOT.CFG"))
         } # try
         catch {
             throw ("Failed to save output file. " + $_.exception.message)
         } # catch
 
         Write-Verbose $ksTemplate
+
 
 
         ## Build ISO image from scratch location, use hostname for the file name

@@ -16,6 +16,9 @@ function Wait-VCSA {
     .PARAMETER Credential
         A credential object to log into VCSA CIS.
 
+    .PARAMETER timeOut
+        Timeout in seconds.
+
     .INPUTS
         System.String. Target VCSA VM.
 
@@ -23,9 +26,9 @@ function Wait-VCSA {
         None.
 
     .EXAMPLE
-        Wait-VCSA -vcsa vcsa.lab.local -Credential $creds
+        Wait-VCSA -vcsa vcsa.lab.local -Credential $creds -timeOut 600
 
-        Restart vcsa.pod.local using $creds
+        Restart vcsa.pod.local using $creds.
 
     .LINK
 
@@ -38,7 +41,9 @@ function Wait-VCSA {
         [Parameter(Mandatory=$true,ValueFromPipeline=$true)]
         [string]$vcsa,
         [Parameter(Mandatory=$true,ValueFromPipeline=$false)]
-        [System.Management.Automation.PSCredential]$Credential
+        [System.Management.Automation.PSCredential]$Credential,
+        [Parameter(Mandatory=$true,ValueFromPipeline=$false)]
+        [int]$timeOut
     )
 
     begin {
@@ -49,13 +54,21 @@ function Wait-VCSA {
     process {
 
         Write-Verbose ("Processing VCSA " + $vcsa)
-        
+
+        $startTime = Get-Date
+
         ## Poll CIS
         Write-Verbose ("Waiting for appliance CIS connectivty.")
 
         while(!(Connect-CisServer -Server $vcsa -Credential $Credential -ErrorAction SilentlyContinue)){
             Start-Sleep 10
             Write-Verbose ("Waiting for appliance CIS connectivty.")
+
+            ## Check if timeout has been exceeded
+            if ($startTime -lt (Get-Date).AddSeconds(-$timeout)) {
+                throw ("Failed to get a response from " + $vcsa + " within the specified timeout period - (" + $timeout + ") seconds.")
+            } # if
+
         } # while
 
 
@@ -63,6 +76,12 @@ function Wait-VCSA {
         while(!(Get-CisService -Name com.vmware.appliance.health.system -ErrorAction SilentlyContinue)){
             Write-Verbose ("Waiting for health system to become available.")
             Start-Sleep 10
+
+            ## Check if timeout has been exceeded
+            if ($startTime -lt (Get-Date).AddSeconds(-$timeout)) {
+                throw ("Failed to get a response from " + $vcsa + " within the specified timeout period - (" + $timeout + ") seconds.")
+            } # if
+
         } # while
 
 
@@ -85,6 +104,12 @@ function Wait-VCSA {
         while($health.get() -ne "green"){
             Start-Sleep 10
             Write-Verbose ("Appliance health status is " + $health.get())
+
+            ## Check if timeout has been exceeded
+            if ($startTime -lt (Get-Date).AddSeconds(-$timeout)) {
+                throw ("Failed to get a response from " + $vcsa + " within the specified timeout period - (" + $timeout + ") seconds.")
+            } # if
+
         } # while
 
         Write-Verbose ("Appliance health status is " + $health.get())
@@ -96,6 +121,12 @@ function Wait-VCSA {
         while(!(Connect-VIServer -Server $vcsa -Credential $Credential -ErrorAction SilentlyContinue)){
             Start-Sleep 10
             Write-Verbose ("Waiting for PowerCLI connectivity.")
+
+            ## Check if timeout has been exceeded
+            if ($startTime -lt (Get-Date).AddSeconds(-$timeout)) {
+                throw ("Failed to get a response from " + $vcsa + " within the specified timeout period - (" + $timeout + ") seconds.")
+            } # if
+
         } # while
 
         Write-Verbose ("PowerCLI connectivity available.")
@@ -131,6 +162,11 @@ function Wait-VCSA {
                 ## For some reason we need to connect each time
                 Connect-CisServer -Server $vcsa -Credential $Credential | Out-Null
 
+                ## Check if timeout has been exceeded
+                if ($startTime -lt (Get-Date).AddSeconds(-$timeout)) {
+                    throw ("Failed to get a response from " + $vcsa + " within the specified timeout period - (" + $timeout + ") seconds.")
+                } # if
+
             } # while
 
             Write-Verbose ("Cluster Enablement is available.")
@@ -142,7 +178,7 @@ function Wait-VCSA {
 
     end {
         Write-Verbose ("Function complete.")
-        
+
     }  #end
 
 } # function
