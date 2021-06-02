@@ -59,6 +59,8 @@ function New-EsxiAutoIso {
         [IPAddress]$gateway,
         [Parameter(Mandatory=$true,ValueFromPipeline=$false)]
         [IPAddress]$nameserver,
+        [Parameter(Mandatory=$false,ValueFromPipeline=$false)]
+        [string[]]$ntpServers,
         [Parameter(Mandatory=$true,ValueFromPipeline=$false)]
         [string]$hostname,
         [Parameter(Mandatory=$false,ValueFromPipeline=$false)]
@@ -151,6 +153,8 @@ esxcli network vswitch standard portgroup add -p "VM Network" -v vSwitch0
 esxcli network ip interface remove --interface-name=vmk0
 esxcli network ip interface add --interface-name=vmk0 --portgroup-name="Management Network"
 esxcli network ip interface ipv4 set -i vmk0 -I {1} -N {2} -t static
+
+
 "@
         } # if
 
@@ -167,6 +171,29 @@ esxcli network ip interface ipv4 set -i vmk0 -I {1} -N {2} -t static
             Write-Verbose ("Found existing KS.CFG, it will be removed.")
             Remove-Item -Path ($mediaPath + "\EFI\BOOT\KS.CFG") -Force
         }
+
+        ## If NTP configuration is specified, apply them to ks.cfg
+        if ($ntpServers) {
+
+            Write-Verbose ("NTP server(s) have been specified, they will be appended to the KS.CFG")
+
+            $ksTemplate += "### Add NTP Server Addresses`n"
+
+            foreach ($ntpServer in $ntpServers) {
+                Write-Verbose ("Adding NTP " + $ntpServer)
+                $ksTemplate += ("echo `"server " + $ntpServer + "`" >> /etc/ntp.conf;`n`n")
+            } # foreach
+
+            $ksTemplate += @"
+### Allow NTP through firewall
+esxcfg-firewall -e ntpClient
+
+### Enable NTP autostartup
+/sbin/chkconfig ntpd on;
+"@
+        Write-Verbose ("NTP configuration complete.")
+
+        } # if
 
         ## Inject new KS.CFG and BOOT.CFG
         Write-Verbose ("Saving template to " + $outputFile)
