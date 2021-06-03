@@ -14,14 +14,33 @@ function New-EsxiAutoIso {
 
         This function supports only UEFI boot mode media.
 
-    .PARAMETER ovaIndex
-        The index number of the DML item to deploy from.
+    .PARAMETER mediaPath
+        An extracted copy of the desired ESXi ISO media.
 
-    .PARAMETER dataStore
-        The name of the target datastore to deploy to.
+    .PARAMETER outputPath
+        The path to output the built ISO. The ISO will be named the same as the host name.
+
+    .PARAMETER $rootCredential
+        A credential object with the specified root password.
+
+    .PARAMETER ip
+        IP address to set on the management interface.
+
+    .PARAMETER netmask
+        The subnet mask to set on the management interface.
+
+    .PARAMETER gateway
+        The default gateway to set on the management interface.
+
+    .PARAMETER nameserver
+        The DNS server to set on the management interface.
+
+    .PARAMETER hostname
+        The hostname to configure on the ESXi instance.
 
     .PARAMETER resetVmk0
-        Optional. By default, VMK0 inherits a MAC from the physical adapter which can cause anomalies with nested networking.
+        Optional. Useful for nested virtualisation. VMK0 inherits a MAC address from the physical adapter, in a nested scenario this can cause issues.
+        Use this switch to recreate VMK0 with a fresh MAC.
 
    .INPUTS
         None.
@@ -59,8 +78,6 @@ function New-EsxiAutoIso {
         [IPAddress]$gateway,
         [Parameter(Mandatory=$true,ValueFromPipeline=$false)]
         [IPAddress]$nameserver,
-        [Parameter(Mandatory=$false,ValueFromPipeline=$false)]
-        [string[]]$ntpServers,
         [Parameter(Mandatory=$true,ValueFromPipeline=$false)]
         [string]$hostname,
         [Parameter(Mandatory=$false,ValueFromPipeline=$false)]
@@ -126,9 +143,6 @@ rootpw {0}
 ### The install media (priority: local / remote / USB)
 install --firstdisk --overwritevmfs
 
-### Set the network to  on the first network adapter
-network --bootproto=static --device=vmnic0 --ip={1} --netmask={2} --gateway={3} --nameserver={4} --hostname={5} --addvmportgroup=0
-
 ### Reboot ESXi Host
 reboot
 
@@ -158,6 +172,12 @@ esxcli network ip interface ipv4 set -i vmk0 -I {1} -N {2} -t static
 "@
         } # if
 
+        ## Append network config as the last thing we do
+        $ksTemplate += @"
+"### Set the network to  on the first network adapter
+network --bootproto=static --device=vmnic0 --ip={1} --netmask={2} --gateway={3} --nameserver={4} --hostname={5} --addvmportgroup=0"
+"@
+
         ## Inject template values
         try {
             $ksTemplate = $ksTemplate -f $rootCredential.GetNetworkCredential().Password, $ip, $netmask, $gateway, $nameserver, $hostname
@@ -171,29 +191,6 @@ esxcli network ip interface ipv4 set -i vmk0 -I {1} -N {2} -t static
             Write-Verbose ("Found existing KS.CFG, it will be removed.")
             Remove-Item -Path ($mediaPath + "\EFI\BOOT\KS.CFG") -Force
         }
-
-        ## If NTP configuration is specified, apply them to ks.cfg
-        if ($ntpServers) {
-
-            Write-Verbose ("NTP server(s) have been specified, they will be appended to the KS.CFG")
-
-            $ksTemplate += "### Add NTP Server Addresses`n"
-
-            foreach ($ntpServer in $ntpServers) {
-                Write-Verbose ("Adding NTP " + $ntpServer)
-                $ksTemplate += ("echo `"server " + $ntpServer + "`" >> /etc/ntp.conf;`n`n")
-            } # foreach
-
-            $ksTemplate += @"
-### Allow NTP through firewall
-esxcfg-firewall -e ntpClient
-
-### Enable NTP autostartup
-/sbin/chkconfig ntpd on;
-"@
-        Write-Verbose ("NTP configuration complete.")
-
-        } # if
 
         ## Inject new KS.CFG and BOOT.CFG
         Write-Verbose ("Saving template to " + $outputFile)
