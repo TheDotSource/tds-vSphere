@@ -168,7 +168,8 @@ esxcli network ip interface remove --interface-name=vmk0
 esxcli network ip interface add --interface-name=vmk0 --portgroup-name="Management Network"
 esxcli network ip interface ipv4 set -i vmk0 -I {1} -N {2} -t static
 
-
+### Supress Core Dump Warning
+esxcli system settings advanced set -o /UserVars/SuppressCoredumpWarning -i 1
 "@
         } # if
 

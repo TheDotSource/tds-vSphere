@@ -197,6 +197,8 @@ function Set-VMHostNTP {
                 "Stopped" {
                     Stop-VMHostService -HostService $ntpService -Confirm:$false -ErrorAction Stop | Out-Null
                     Write-Verbose ("NTP service has been stopped.")
+
+                    Break
                 } # Stopped
             } # switch
         } # try
