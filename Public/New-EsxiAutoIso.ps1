@@ -167,15 +167,15 @@ esxcli network vswitch standard portgroup add -p "VM Network" -v vSwitch0
 esxcli network ip interface remove --interface-name=vmk0
 esxcli network ip interface add --interface-name=vmk0 --portgroup-name="Management Network"
 esxcli network ip interface ipv4 set -i vmk0 -I {1} -N {2} -t static
-
-### Supress Core Dump Warning
-esxcli system settings advanced set -o /UserVars/SuppressCoredumpWarning -i 1
 "@
         } # if
 
         ## Append network config as the last thing we do
         $ksTemplate += @"
-"### Set the network to  on the first network adapter
+### Supress Core Dump Warning
+esxcli system settings advanced set -o /UserVars/SuppressCoredumpWarning -i 1
+
+### Set the network to  on the first network adapter
 network --bootproto=static --device=vmnic0 --ip={1} --netmask={2} --gateway={3} --nameserver={4} --hostname={5} --addvmportgroup=0"
 "@
 
