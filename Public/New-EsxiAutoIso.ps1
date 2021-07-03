@@ -124,7 +124,7 @@ function New-EsxiAutoIso {
                 if ($_ -match "kernelopt*") {
 
                     ## Replace this line to point to our new KS.CFG
-                    return "kernelopt=runweasel ks=cdrom:/EFI/BOOT/KS.CFG"
+                    return "kernelopt=runweasel ks=cdrom:/EFI/BOOT/KS.CFG allowLegacyCPU=true"
                 } # if
 
                 $_
