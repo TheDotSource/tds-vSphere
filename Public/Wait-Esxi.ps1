@@ -53,7 +53,7 @@ function Wait-ESXi {
         $startTime = Get-Date 
 
         ## Wait for a ping back from the specified host.
-        Write-Verbose ("Waiting for " + $testHost + " to respond within the " + $timeout + " second timeout period.")
+        Write-Verbose ("Waiting for " + $esxiHost + " to respond within the " + $timeout + " second timeout period.")
 
         do {
             Write-Verbose ("Waiting for host.....")
