@@ -103,7 +103,7 @@ function New-VMTools {
         ## Support should process
         if ($PSCmdlet.ShouldProcess($Computername)) {
             try {
-                Invoke-Command -ComputerName $Computername -ScriptBlock $toolsInstall -ArgumentList $driveLetter -ErrorAction Stop
+                Invoke-Command -ComputerName $Computername -ScriptBlock $toolsInstall -ArgumentList $driveLetter -Credential $Credential -ErrorAction Stop
                 Write-Verbose ("Installation complete.")
             } # try
             catch {
