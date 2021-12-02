@@ -9,7 +9,7 @@
         For example, datastores esx01Scratch, esxi02Scratch, esxi03Scratch could all configured using *scratch as the wildcard.
 
     .PARAMETER vmHost
-        The host to set the log location on.
+        The vmHost object to configure.
 
     .PARAMETER datastoreName
         A specific datastore name to use for log location.
@@ -18,20 +18,20 @@
         Match a datastore name by wildcard. Useful to configure a batch of hosts with similar datastore names.
 
     .INPUTS
-        System.String. Target host name.
+        VMware.VimAutomation.ViCore.Impl.V1.Inventory.VMHostImpl. Target host name.
 
     .OUTPUTS
         None.
 
     .EXAMPLE
-        Set-EsxiLogLocation -vmHost testhost01.lab.local -dataStoreName SCRATCH
+        Set-EsxiLogLocation -vmHost $vmHost -dataStoreName SCRATCH
 
         Set the host log location to the SCRATCH datastore.
 
     .EXAMPLE
-        @("testhost01.lab.local","testhost02.lab.local","testhost03.lab.local") | Set-EsxiLogLocation -dataStoreWildcard SCRATCH
+        @($vmHost01,$vmHost02,$vmHost03) | Set-EsxiLogLocation -dataStoreWildcard SCRATCH
 
-        Set the datastore for logs on testhost01/02/03 to a datastore matching the name SCRATCH, e.g. testHost01Scratch, testHost02Scratch etc
+        Set the datastore for logs on$vmHost01/02/03 to a datastore matching the name SCRATCH, e.g. testHost01Scratch, testHost02Scratch etc
 
     .LINK
 
@@ -42,7 +42,7 @@
     [CmdletBinding(SupportsShouldProcess=$true,ConfirmImpact="Low")]
     Param(
         [Parameter(Mandatory=$true,ValueFromPipeline=$true)]
-        [string]$vmHost,
+        [VMware.VimAutomation.ViCore.Impl.V1.Inventory.VMHostImpl]$vmHost,
         [Parameter(ParameterSetName="specific")]
         [string]$datastoreName,
         [Parameter(ParameterSetName="wildcard")]
@@ -57,39 +57,25 @@
 
     process {
 
-        Write-Verbose ("Porcessing host " + $vmHost)
-
-        ## Get VM host object
-        Write-Verbose ("Getting host object.")
-
-        try {
-            $vmHostObj = Get-VMHost -Name $vmHost -ErrorAction Stop
-            Write-Verbose ("Got host object.")
-        } # try
-        catch {
-            Write-Debug ("Failed to get host object.")
-            throw ("Failed to get host object. " + $_.exception.message)
-        } # catch
-
+        Write-Verbose ("Porcessing host " + $vmHost.name)
 
         ## Get datastore object using specified method
         try {
             if ($datastoreName) {
 
                 Write-Verbose ("Getting datastore with specific name: " + $datastoreName)
-                $logDs = $vmHostObj | Get-Datastore -Name $datastoreName -ErrorAction Stop
+                $logDs = $vmHost | Get-Datastore -Name $datastoreName -ErrorAction Stop
 
             } # if
             else {
 
                 Write-Verbose ("Matching datastore using wildcard: " + $datastoreWildcard)
-                $logDs = $vmHostObj | Get-Datastore -ErrorAction Stop | Where-Object {$_.name -like ("*" + $datastoreWildcard + "*")}
+                $logDs = $vmHost | Get-Datastore -ErrorAction Stop | Where-Object {$_.name -like ("*" + $datastoreWildcard + "*")}
 
             } # else
 
         } # try
         catch {
-            Write-Debug ("Failed to get datastore.")
             throw ("Failed to get datastore. " + $_.exception.message)
         } # catch
 
@@ -111,18 +97,17 @@
         Write-Verbose ("Applying new log location")
 
         try {
-            if ($PSCmdlet.ShouldProcess($vmHost)) {
-                Get-AdvancedSetting -Entity $vmHostObj -Name "Syslog.global.logDir" -ErrorAction Stop | Set-AdvancedSetting -Value ("[" + $logDs.Name +"] /") -Confirm:$false -ErrorAction Stop | Out-Null
+            if ($PSCmdlet.ShouldProcess($vmHost.name)) {
+                Get-AdvancedSetting -Entity $vmHost -Name "Syslog.global.logDir" -ErrorAction Stop | Set-AdvancedSetting -Value ("[" + $logDs.Name +"] /") -Confirm:$false -ErrorAction Stop | Out-Null
                 Write-Verbose ("Log location set.")
             } # if
         } # try
         catch {
-            Write-Debug ("Failed to set log location.")
             throw ("Failed to set log location. " + $_.exception.message)
         } # catch
 
 
-        Write-Verbose ("Completed host " + $vmHost)
+        Write-Verbose ("Completed host " + $vmHost.name)
 
     } # process
 

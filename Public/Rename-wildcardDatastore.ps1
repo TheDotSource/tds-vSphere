@@ -15,7 +15,7 @@ function Rename-wildcardDatastore {
         The wildcard to match the intended datastore.
 
     .INPUTS
-        None.
+        VMware.VimAutomation.ViCore.Impl.V1.Inventory.VMHostImpl. VMhost object.
 
     .OUTPUTS
         None.
@@ -34,7 +34,7 @@ function Rename-wildcardDatastore {
     [CmdletBinding()]
     Param(
         [Parameter(Mandatory=$true,ValueFromPipeline=$false)]
-        [string]$vmHost,
+        [VMware.VimAutomation.ViCore.Impl.V1.Inventory.VMHostImpl]$vmHost,
         [Parameter(Mandatory=$true,ValueFromPipeline=$false)]
         [string]$wildcard
     )
@@ -54,10 +54,9 @@ function Rename-wildcardDatastore {
         Write-Verbose ("Fetching datastore from host matching *" + $wildcard + "*")
 
         try {
-            $datastoreObj = Get-VMHost -Name $vmHost -ErrorAction Stop | Get-Datastore -ErrorAction Stop | Where-Object {$_.name -like ("*" + $wildcard + "*")} | Select-Object -First 1
+            $datastoreObj = $vmHost  | Get-Datastore -ErrorAction Stop | Where-Object {$_.name -like ("*" + $wildcard + "*")} | Select-Object -First 1
         } # try
         catch {
-            Write-Debug ("Failed to get host datastore.")
             throw ("Failed to get host datastore. " + $_.exception.message)
         } # catch
 
@@ -70,13 +69,12 @@ function Rename-wildcardDatastore {
         Write-Verbose ("Datastore " + $datastoreObj.name + " was found.")
 
         ## Rename this datastore, capatise the first letter of the wildcard for sweet sweet camelCase
-        Write-Verbose ("Renaming datastore to " + ($vmHost.split(".")[0] + $wildcard.substring(0,1).toupper() + $wildcard.substring(1).tolower()))
+        Write-Verbose ("Renaming datastore to " + ($vmHost.name.split(".")[0] + $wildcard.substring(0,1).toupper() + $wildcard.substring(1).tolower()))
         try {
-            $datastoreObj | Set-Datastore -Name ($vmHost.split(".")[0] + $wildcard.substring(0,1).toupper() + $wildcard.substring(1).tolower()) -ErrorAction Stop | Out-Null
+            $datastoreObj | Set-Datastore -Name ($vmHost.name.split(".")[0] + $wildcard.substring(0,1).toupper() + $wildcard.substring(1).tolower()) -ErrorAction Stop | Out-Null
             Write-Verbose ("Rename complete.")
         } # try
         catch {
-            Write-Debug ("Failed to rename datastore.")
             throw ("Failed to rename datastore " + $_.exception.message)
         } # catch
 
