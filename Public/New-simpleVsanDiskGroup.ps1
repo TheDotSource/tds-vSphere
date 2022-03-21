@@ -23,7 +23,8 @@
     .LINK
 
     .NOTES
-        01       11/05/20     Initial version.           A McNair
+        01       11/05/20     Initial version.                            A McNair
+        02       21/03/22     Added some additional verbose output.       A McNair
     #>
 
     [CmdletBinding(SupportsShouldProcess=$true,ConfirmImpact="Low")]
@@ -34,15 +35,13 @@
 
 
     begin {
-
         Write-Verbose ("Function start.")
-
     } # begin
 
 
     process {
 
-        Write-Verbose ("Processing host " + $vmHost)
+        Write-Verbose ("Processing host " + $vmHost.name)
 
         ## Create array for capacity disks
         $capacityDisk = @()
@@ -52,7 +51,7 @@
         Write-Verbose ("Fetching elegible disks on this host.")
 
         try {
-            $vsanDisks = $vmHost | Get-VMHostHba -ErrorAction Stop | Get-ScsiLun -ErrorAction Stop | Where-Object {$_.VsanStatus -eq “Eligible”}
+            $vsanDisks = $vmHost | Get-VMHostHba -ErrorAction Stop | Get-ScsiLun -ErrorAction Stop | Where-Object {$_.VsanStatus -eq "Eligible"}
             Write-Verbose ("Got disks.")
         } # try
         catch {
@@ -62,9 +61,11 @@
 
         ## Determine which disk is cache tier
         $cacheDisk = ($vsanDisks | Sort-Object -Property CapacityGB | Select-Object -First 1).CanonicalName
+        Write-Verbose ("Target cache disk is " + $cacheDisk)
 
         ## Add remaining disks to capacity disk array
         $capacityDisk += ($vsanDisks | Where-Object {$_.CanonicalName -ne $cacheDisk}).CanonicalName
+        Write-Verbose ("Target capacity disks are " + ($capacityDisk -join ","))
 
 
         ## Create the vSAN disk group
