@@ -14,6 +14,10 @@ function New-EsxiAutoIso {
 
         This function supports only UEFI boot mode media.
 
+        Thanks to William Lam for providing ESXi 8.0 parameters for legacy CPU:
+            * https://williamlam.com/2022/09/homelab-considerations-for-vsphere-8.html
+            * https://williamlam.com/2022/10/quick-tip-automating-esxi-8-0-install-using-allowlegacycputrue.html
+
     .PARAMETER mediaPath
         An extracted copy of the desired ESXi ISO media.
 
@@ -61,6 +65,7 @@ function New-EsxiAutoIso {
 
     .NOTES
         01           Alistair McNair          Initial version.
+        02           Alistair McNair          Updated for ESXi 8.0.
 
     #>
 
