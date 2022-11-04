@@ -36,6 +36,9 @@ function New-EsxiAutoIso {
     .PARAMETER gateway
         The default gateway to set on the management interface.
 
+    .PARAMETER vlanId
+        Optional. If specified sets the VLAN ID on management interface. If not specified this option is left unset.
+
     .PARAMETER nameserver
         The DNS server to set on the management interface.
 
@@ -46,7 +49,7 @@ function New-EsxiAutoIso {
         Optional. Useful for nested virtualisation. VMK0 inherits a MAC address from the physical adapter, in a nested scenario this can cause issues.
         Use this switch to recreate VMK0 with a fresh MAC.
 
-    .PARAMETER allowUnsupportedCPU
+    .PARAMETER allowLegacyCPU
         Perform the installation even if the host CPU is not supported.
 
    .INPUTS
@@ -84,6 +87,9 @@ function New-EsxiAutoIso {
         [IPAddress]$netmask,
         [Parameter(Mandatory=$true,ValueFromPipeline=$false)]
         [IPAddress]$gateway,
+        [Parameter(Mandatory=$false,ValueFromPipeline=$false)]
+        [ValidateRange(1,4096)]
+        [int]$vlanId,
         [Parameter(Mandatory=$true,ValueFromPipeline=$false)]
         [IPAddress]$nameserver,
         [Parameter(Mandatory=$true,ValueFromPipeline=$false)]
@@ -157,6 +163,12 @@ function New-EsxiAutoIso {
         } # else
 
 
+        ## Process VLAN addition if required.
+        if ($vlanId) {
+            Write-Verbose ("VLAN ID " + $vlanId + " has been specified.")
+            $vlanIdString = ("--vlanid=" + $vlanId)
+        } # if
+
         $ksTemplate = @"
 ### Accept the VMware End User License Agreement
 vmaccepteula
@@ -168,10 +180,10 @@ vmaccepteula
 reboot
 
 ### Set the network to  on the first network adapter
-network --bootproto=static --device=vmnic0 --ip={1} --netmask={2} --gateway={3} --nameserver={4} --hostname={5} --addvmportgroup=0
+network --bootproto=static --device=vmnic0 --ip={1} --netmask={2} --gateway={3} --nameserver={4} --hostname={5} --addvmportgroup=0 {6}
 
 ### Set the root password for the DCUI and Tech Support Mode
-rootpw {6}
+rootpw {7}
 
 
 #Firstboot section 1
@@ -193,7 +205,8 @@ esxcli network vswitch standard portgroup add -p "VM Network" -v vSwitch0
 ### Reset VMK0. By default, VMK0 inherits a MAC from the physical adapter which can cause anomalies with nested networking.
 esxcli network ip interface remove --interface-name=vmk0
 esxcli network ip interface add --interface-name=vmk0 --portgroup-name="Management Network"
-esxcli network ip interface ipv4 set -i vmk0 --ipv4 {1} --netmask {2} --type static
+esxcli network ip interface ipv4 set -i vmk0 -t static -I {1} -N {2}
+esxcli network ip route ipv4 add --gateway={3} --network=default
 "@
         } # if
 
@@ -206,7 +219,7 @@ esxcli system settings advanced set -o /UserVars/SuppressCoredumpWarning -i 1
 
         ## Inject template values
         try {
-            $ksTemplate = $ksTemplate -f $installString, $ip, $netmask, $gateway, $nameserver, $hostname, $rootCredential.GetNetworkCredential().Password
+            $ksTemplate = $ksTemplate -f $installString, $ip, $netmask, $gateway, $nameserver, $hostname, $vlanIdString, $rootCredential.GetNetworkCredential().Password
             Write-Verbose ("Template values injected.")
         } # try
         catch {
